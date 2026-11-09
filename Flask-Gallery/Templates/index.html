@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galeri Foto & Video Dinamis</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <header>
+        <h1>📸 Galeri Foto & Video Dinamis</h1>
+        <p>Aplikasi Media Flask dengan Sinkronisasi & Edit Satu Halaman</p>
+    </header>
+
+    <div class="container">
+        
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ category }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <!-- Form Upload -->
+        <div class="upload-card">
+            <h2>➕ Unggah Media Baru</h2>
+            <form action="{{ url_for('upload_photo') }}" method="POST" enctype="multipart/form-data">
+                <div class="form-group">
+                    <label for="title">Judul Media:</label>
+                    <input type="text" id="title" name="title" class="form-control" placeholder="Contoh: Perjalanan Seru..." required>
+                </div>
+                <div class="form-group">
+                    <label for="description">Deskripsi (Opsional):</label>
+                    <textarea id="description" name="description" class="form-control" rows="2" placeholder="Tuliskan cerita singkat..."></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="file">Pilih Berkas (Gambar / Video MP4):</label>
+                    <input type="file" id="file" name="file" class="form-control" accept="image/*,video/mp4,video/webm,video/quicktime" required>
+                </div>
+                <button type="submit" class="btn">Unggah Media Sekarang</button>
+            </form>
+        </div>
+
+        <!-- Grid Galeri -->
+        <h2 class="section-title">🖼️ Koleksi Media</h2>
+        <div class="gallery-grid">
+            {% if photos %}
+                {% for photo in photos %}
+                    <div class="photo-card">
+                        <!-- Tampil Gambar / Video -->
+                        {% if photo.filename.endswith(('mp4', 'webm', 'mov')) %}
+                            <video class="photo-img" controls>
+                                <source src="{{ url_for('static', filename='uploads/' + photo.filename) }}" type="video/mp4">
+                                Browser Anda tidak mendukung tag video.
+                            </video>
+                        {% else %}
+                            <img src="{{ url_for('static', filename='uploads/' + photo.filename) }}" alt="{{ photo.title }}" class="photo-img">
+                        {% endif %}
+
+                        <div class="photo-body">
+                            <div>
+                                <h3 class="photo-title">{{ photo.title }}</h3>
+                                <p class="photo-desc">{{ photo.description or 'Tidak ada deskripsi.' }}</p>
+                            </div>
+                            <div class="photo-footer">
+                                <span class="photo-date">{{ photo.upload_date.strftime('%d %b %Y, %H:%M') }}</span>
+                                <div style="display: flex; gap: 0.5rem;">
+                                    <!-- Tombol untuk membuka Modal Edit di halaman yang sama -->
+                                    <button type="button" class="btn" style="padding: 0.4rem 0.9rem; font-size: 0.85rem; background: #3b82f6; animation: none;" onclick="openEditModal('{{ photo.id }}', '{{ photo.title }}', '{{ photo.description | escape }}')">Edit</button>
+                                    
+                                    <form action="{{ url_for('delete_photo', photo_id=photo.id) }}" method="POST" onsubmit="return confirm('Yakin ingin menghapus media ini?');">
+                                        <button type="submit" class="btn btn-danger">Hapus</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            {% else %}
+                <div class="empty-state">
+                    <h3>Belum ada media yang diunggah.</h3>
+                    <p>Yuk, masukkan file ke folder atau unggah melalui form di atas!</p>
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+
+    <!-- MODAL POPUP EDIT (Satu Halaman) -->
+    <div id="editModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2>✏️ Edit Judul & Deskripsi</h2>
+            <form id="editForm" method="POST">
+                <div class="form-group">
+                    <label for="edit-title">Judul Media:</label>
+                    <input type="text" id="edit-title" name="title" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="edit-desc">Deskripsi:</label>
+                    <textarea id="edit-desc" name="description" class="form-control" rows="3"></textarea>
+                </div>
+                <div style="display: flex; gap: 1rem; margin-top: 1.5rem;">
+                    <button type="submit" class="btn" style="animation: none;">Simpan</button>
+                    <button type="button" class="btn" style="background: #475569; animation: none;" onclick="closeEditModal()">Batal</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Script JavaScript untuk Modal & Style Tambahan Modal -->
+    <script>
+        function openEditModal(id, title, desc) {
+            const modal = document.getElementById('editModal');
+            const form = document.getElementById('editForm');
+            const inputTitle = document.getElementById('edit-title');
+            const inputDesc = document.getElementById('edit-desc');
+
+            form.action = "/edit/" + id;
+            inputTitle.value = title;
+            inputDesc.value = desc;
+            modal.style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+    </script>
+
+    <style>
+        /* CSS Tambahan khusus untuk Modal Popup Satu Halaman */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(3, 7, 18, 0.8);
+            backdrop-filter: blur(8px);
+            display: flex; justify-content: center; align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #1e293b;
+            padding: 2.5rem;
+            border-radius: 20px;
+            width: 100%; max-width: 500px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.5);
+            animation: fadeInUp 0.3s ease-out;
+        }
+        .modal-content h2 {
+            margin-bottom: 1.5rem;
+            color: #f8fafc;
+            font-size: 1.4rem;
+        }
+    </style>
+
+</body>
+</html>
